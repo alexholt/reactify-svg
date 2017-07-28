@@ -19,7 +19,7 @@ const reactifyAttr = (attr) => {
 const file = process.argv[2];
 
 const fileText = renderBody => {
-    const className = file[0].toUpperCase() + file.split('').slice(1).join('').replace(/\.svg$/, '');
+    const className = file[0].toUpperCase() + camelCase(file.split('').slice(1).join('').replace(/\.svg$/, ''));
 
     return `import React, {Component} from 'react';
 
