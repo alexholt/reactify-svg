@@ -1,0 +1,23 @@
+{
+  "name": "reactify-svg",
+  "version": "1.0.0",
+  "description": "Turn SVG files into JSX files with ease.",
+  "main": "index.js",
+  "dependencies": {
+    "jsdom": "^11.1.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "karma start --single-run --browsers ChromeHeadless karma.conf.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "github.com/alexholt/reactify-svg"
+  },
+  "keywords": [
+    "react",
+    "svg"
+  ],
+  "author": "Alex Holt",
+  "license": "MIT"
+}
