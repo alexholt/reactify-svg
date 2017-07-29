@@ -2,7 +2,7 @@
   <defs>
     <path id="a" d="M136.5,142 L136.5,29 L117,29 L117,142 L34,142 L34,154 L117,154 L117,231.699219 L136.5,231.699219 L136.5,154 L220,154 L220,142 L136.5,142 Z"/>
   </defs>
-  <g fill="none" fill-rule="evenodd">
+  <g id="component-circles" fill="none" fill-rule="evenodd">
     <circle cx="29.5" cy="29.5" r="28.5" fill="#D8D8D8" stroke="#979797"/>
     <circle cx="220.189" cy="57.189" r="37.189" fill="#D8D8D8" stroke="#979797"/>
     <circle cx="235.754" cy="209.754" r="21.754" fill="#D8D8D8" stroke="#979797"/>

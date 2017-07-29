@@ -18,8 +18,7 @@ const reactifyAttr = (attr) => {
 
 const file = process.argv[2];
 
-const fileText = renderBody => {
-    const className = file[0].toUpperCase() + camelCase(file.split('').slice(1).join('').replace(/\.svg$/, ''));
+const fileText = (renderBody, className) => {
 
     return `import React, {Component} from 'react';
 
@@ -27,13 +26,26 @@ export default class ${className} extends Component {
 
   render() {
     return (
-      ${renderBody}
+      ${renderBody.split('\n').join('\n      ')}
     );
   }
 }
-`};
+`
+};
 
 const reformatNode = (node) => {
+    const id = node.getAttribute('id');
+
+    if (/^component-/.test(id)) {
+        const newId = id.replace(/^component-/, '');
+        node.setAttribute('id', newId);
+        reformatNode(node);
+        const moduleName = newId[0].toUpperCase() + camelCase(newId.substr(1));
+        saveFile(`${newId}.jsx`, fileText(cleanUp(node.outerHTML), moduleName));
+        node.parentNode.replaceChild(document.createTextNode(`<${moduleName}/>`), node);
+        return;
+    }
+
     Array.from(node.attributes).forEach(attr => {
         const name = reactifyAttr(attr.name);
         const value = attr.value;
@@ -51,15 +63,31 @@ const reformat = (text) => {
 };
 
 
-fs.writeFileSync('out.jsx',
-    fileText(
-        reformat(
-            fs.readFileSync(file).toString()
-        )
-        // Quick and dirty tags to self-closing tags when the node is empty
-        .replace(/><\/[^>]+>/g, '/>')
-        // Switch to single quotes
-        .replace(/"/g, "'")
-        .split('\n').join('\n      ')
-    )
-);
+const saveFile = (filename, text) => {
+    fs.writeFileSync(filename, text);
+};
+
+const cleanUp = (text) => {
+    return text
+      // Quick and dirty tags to self-closing tags when the node is empty
+      .replace(/><\/[^>]+>/g, '/>')
+
+      // Switch to single quotes
+      .replace(/"/g, "'")
+
+      // Unescape the forbidden characters
+      .replace(/&gt;/g, '>')
+      .replace(/&lt;/g, '<')
+    ;
+};
+
+const makeComponentFile = (text, filename = 'out.jsx') => {
+    const className = file[0].toUpperCase() + camelCase(file.split('').slice(1).join('').replace(/\.svg$/, ''));
+
+    saveFile(
+        filename,
+        fileText(cleanUp(reformat(text)), className)
+    );
+};
+
+makeComponentFile(fs.readFileSync(file).toString());
