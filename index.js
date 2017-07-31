@@ -1,13 +1,18 @@
+#! /usr/bin/env node
 // TODO: Remove <title> and <desc>
 
 const fs = require('fs');
+const path = require('path');
 const camelCase = require('lodash/camelCase');
 const {JSDOM} = require('jsdom');
 
 const attrsMap= require('./svgReactAttrs');
 
-const parser = new (new JSDOM().window.DOMParser);
-const document = new JSDOM().window.document;
+const jsdom = new JSDOM();
+const parser = new jsdom.window.DOMParser;
+const document = jsdom.window.document;
+
+const dependencyMap = {};
 
 const reactifyAttr = (attr) => {
     if (attrsMap[attr]) {
@@ -16,11 +21,18 @@ const reactifyAttr = (attr) => {
     return attr;
 };
 
-const file = process.argv[2];
+const file = path.basename(process.argv[2]);
+const outFolder = process.argv[3];
 
 const fileText = (renderBody, className) => {
+    const deps = ["import React, {Component} from 'react';"];
+    if (dependencyMap[className]) {
+        dependencyMap[className].forEach(dep => deps.push(`import ${dep} from './${dep.toLowerCase()}';`));
+    }
 
-    return `import React, {Component} from 'react';
+    return (
+/////
+`${deps.join('\n')}
 
 export default class ${className} extends Component {
 
@@ -31,40 +43,64 @@ export default class ${className} extends Component {
   }
 }
 `
+////
+);
 };
 
-const reformatNode = (node) => {
+const reformatNode = (node, parentName) => {
     const id = node.getAttribute('id');
 
     if (/^component-/.test(id)) {
         const newId = id.replace(/^component-/, '');
         node.setAttribute('id', newId);
-        reformatNode(node);
         const moduleName = newId[0].toUpperCase() + camelCase(newId.substr(1));
+        reformatNode(node, moduleName);
         saveFile(`${newId}.jsx`, fileText(cleanUp(node.outerHTML), moduleName));
         node.parentNode.replaceChild(document.createTextNode(`<${moduleName}/>`), node);
+
+        if (!dependencyMap[parentName]) {
+            dependencyMap[parentName] = [];
+        }
+
+        dependencyMap[parentName].push(moduleName);
+
+        return;
+    }
+
+    if (node.nodeName === '#comment') {
+        node.parentNode.removeChild(node);
         return;
     }
 
     Array.from(node.attributes).forEach(attr => {
         const name = reactifyAttr(attr.name);
-        const value = attr.value;
+        let value = attr.value;
         node.attributes.removeNamedItem(attr.name);
+
+        if (name === 'style') {
+            value = JSON.stringify(value.split(';').reduce((acc, cur) => {
+                const [prop, val] = cur.split(':');
+                if (val && prop) {
+                    acc[prop.trim()] = val.trim();
+                }
+                return acc;
+            }, {}));
+        }
         node.setAttribute(name, value);
     });
 
-    Array.from(node.children).forEach(reformatNode);
+    Array.from(node.children).forEach(node => reformatNode(node, parentName));
 };
 
-const reformat = (text) => {
+const reformat = (text, compName) => {
     const doc = parser.parseFromString(text, 'image/svg+xml');
-    reformatNode(doc.documentElement);
+    reformatNode(doc.documentElement, compName);
     return doc.documentElement.outerHTML;
 };
 
 
 const saveFile = (filename, text) => {
-    fs.writeFileSync(filename, text);
+    fs.writeFileSync(path.join(outFolder, filename), text);
 };
 
 const cleanUp = (text) => {
@@ -75,18 +111,29 @@ const cleanUp = (text) => {
       // Switch to single quotes
       .replace(/"/g, "'")
 
-      // Unescape the forbidden characters
+      // Unescape the escaped characters
       .replace(/&gt;/g, '>')
       .replace(/&lt;/g, '<')
+      .replace(/&quot;/g, '"')
+
+      // Remove comments
+      .replace(/<!--.*-->/g, '')
+
+      // Fixup style
+      .replace(/style='([^']+)'/g, 'style={$1}')
     ;
 };
 
-const makeComponentFile = (text, filename = 'out.jsx') => {
+const makeComponentFile = (text, filename) => {
     const className = file[0].toUpperCase() + camelCase(file.split('').slice(1).join('').replace(/\.svg$/, ''));
+
+    if (!filename) {
+        filename = 'Out.jsx';
+    }
 
     saveFile(
         filename,
-        fileText(cleanUp(reformat(text)), className)
+        fileText(cleanUp(reformat(text, className)), className)
     );
 };
 
