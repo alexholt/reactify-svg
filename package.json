@@ -6,9 +6,11 @@
   "dependencies": {
     "jsdom": "^11.1.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "jest": "^20.0.4"
+  },
   "scripts": {
-    "test": "karma start --single-run --browsers ChromeHeadless karma.conf.js"
+    "test": "jest .*test.jsx?"
   },
   "repository": {
     "type": "git",
