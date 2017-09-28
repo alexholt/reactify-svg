@@ -13,6 +13,11 @@ const jsdom = new JSDOM();
 const parser = new jsdom.window.DOMParser;
 const document = jsdom.window.document;
 
+// Default Args
+const DEFAULT_PREFIX = module.exports.DEFAULT_PREFIX = 'component-';
+const DEFAULT_OUT_FOLDER = module.exports.DEFAULT_OUT_FOLDER = '.';
+//
+
 const dependencyMap = {};
 
 const reactifyAttr = (attr) => {
@@ -27,9 +32,9 @@ const applyDefaultArgs = (args) => {
 
     if (!file) throw 'Missing required argument [filename]';
     return {
-        prefix: args.prefix || args.p || 'component-',
+        prefix: args.prefix || args.p || DEFAULT_PREFIX,
         file,
-        outFolder: path.resolve(args['out-folder'] || args.o || '.'),
+        outFolder: path.resolve(args['out-folder'] || args.o || DEFAULT_OUT_FOLDER),
     };
 };
 
@@ -55,15 +60,20 @@ export default class ${className} extends Component {
 ////
 );};
 
-const reformatNode = (node, parentName, outFolder) => {
+const reformatNode = (node, parentName, outFolder, files, prefix) => {
     const id = node.getAttribute('id');
+    const prefixRegExp = new RegExp(`^${prefix}`);
 
-    if (/^component-/.test(id)) {
-        const newId = id.replace(/^component-/, '');
+    if (prefixRegExp.test(id)) {
+        const newId = id.replace(prefixRegExp, '');
         node.setAttribute('id', newId);
         const moduleName = newId[0].toUpperCase() + camelCase(newId.substr(1));
-        reformatNode(node, moduleName);
-        saveFile(`${moduleName}.jsx`, fileText(cleanUp(node.outerHTML), moduleName), outFolder);
+        reformatNode(node, moduleName, outFolder, files, prefix);
+        files.push({
+            filename: `${moduleName}.jsx`,
+            contents: fileText(cleanUp(node.outerHTML), moduleName),
+            outFolder,
+        });
         node.parentNode.replaceChild(document.createTextNode(`<${moduleName}/>`), node);
 
         if (!dependencyMap[parentName]) {
@@ -97,19 +107,24 @@ const reformatNode = (node, parentName, outFolder) => {
         node.setAttribute(name, value);
     });
 
-    Array.from(node.children).forEach(node => reformatNode(node, parentName, outFolder));
+    Array.from(node.children).forEach(node => reformatNode(node, parentName, outFolder, files, prefix));
 };
 
-const reformat = (text, compName, outFolder) => {
+const reformat = (text, compName, outFolder, files, prefix) => {
     const doc = parser.parseFromString(text, 'image/svg+xml');
-    reformatNode(doc.documentElement, compName, outFolder);
+    reformatNode(doc.documentElement, compName, outFolder, files, prefix);
     return doc.documentElement.outerHTML;
 };
 
 
-const saveFile = (filename, text, outFolder) => {
+const saveFile = ({filename, contents, outFolder}) => {
     if (!fs.existsSync(outFolder)) fs.mkdirSync(outFolder);
-    fs.writeFileSync(path.join(outFolder, filename), text);
+    fs.writeFileSync(path.join(outFolder, filename), contents);
+    console.info(`${filename} written`);
+};
+
+const saveFiles = files => {
+    files.forEach(saveFile);
 };
 
 const cleanUp = (text) => {
@@ -133,24 +148,36 @@ const cleanUp = (text) => {
     ;
 };
 
-const makeComponentFile = (text, file, outFolder) => {
+const makeComponents = (text, file, outFolder, prefix) => {
     const className = file[0].toUpperCase() + camelCase(file.split('').slice(1).join('').replace(/\.svg$/, ''));
     const filename = `${className}.jsx`;
+    const files = []; // [{ filename: string, contents: string, outFolder: string}...]
 
-    saveFile(
+    files.push({
         filename,
-        fileText(cleanUp(reformat(text, className, outFolder)), className),
-        outFolder
-    );
+        contents: fileText(cleanUp(reformat(text, className, outFolder, files, prefix)), className),
+        outFolder,
+    });
+
+    return files;
 };
 
 const main = (args) => {
-  makeComponentFile(fs.readFileSync(args.file).toString(), args.file, args.outFolder);
+    saveFiles(makeComponents(fs.readFileSync(args.file).toString(), args.file, args.outFolder, args.prefix));
 };
 
-try {
-  main(applyDefaultArgs(parseArgs(process.argv.slice(2))));
-} catch (err) {
-  console.log(err);
-  process.exit(1);
+if (!module.parent) {
+    try {
+        main(applyDefaultArgs(parseArgs(process.argv.slice(2))));
+    } catch (err) {
+        console.log(err);
+        process.exit(1);
+    }
+} else {
+  Object.assign(module.exports, {
+    applyDefaultArgs,
+    makeComponents,
+    reformat,
+    reactifyAttr,
+  });
 }
