@@ -2,11 +2,12 @@
 // TODO: Remove <title> and <desc>
 
 const fs = require('fs');
+const {JSDOM} = require('jsdom');
 const path = require('path');
 const camelCase = require('lodash/camelCase');
-const {JSDOM} = require('jsdom');
+const parseArgs = require('minimist');
 
-const attrsMap= require('./svgReactAttrs');
+const attrsMap= require('./src/svg-react-attrs');
 
 const jsdom = new JSDOM();
 const parser = new jsdom.window.DOMParser;
@@ -21,8 +22,16 @@ const reactifyAttr = (attr) => {
     return attr;
 };
 
-const file = path.basename(process.argv[2]);
-const outFolder = process.argv[3];
+const applyDefaultArgs = (args) => {
+    const file = args._[0];
+
+    if (!file) throw 'Missing required argument [filename]';
+    return {
+        prefix: args.prefix || args.p || 'component-',
+        file,
+        outFolder: path.resolve(args['out-folder'] || args.o || '.'),
+    };
+};
 
 const fileText = (renderBody, className) => {
     const deps = ["import React, {Component} from 'react';"];
@@ -44,10 +53,9 @@ export default class ${className} extends Component {
 }
 `
 ////
-);
-};
+);};
 
-const reformatNode = (node, parentName) => {
+const reformatNode = (node, parentName, outFolder) => {
     const id = node.getAttribute('id');
 
     if (/^component-/.test(id)) {
@@ -55,7 +63,7 @@ const reformatNode = (node, parentName) => {
         node.setAttribute('id', newId);
         const moduleName = newId[0].toUpperCase() + camelCase(newId.substr(1));
         reformatNode(node, moduleName);
-        saveFile(`${newId}.jsx`, fileText(cleanUp(node.outerHTML), moduleName));
+        saveFile(`${moduleName}.jsx`, fileText(cleanUp(node.outerHTML), moduleName), outFolder);
         node.parentNode.replaceChild(document.createTextNode(`<${moduleName}/>`), node);
 
         if (!dependencyMap[parentName]) {
@@ -89,17 +97,18 @@ const reformatNode = (node, parentName) => {
         node.setAttribute(name, value);
     });
 
-    Array.from(node.children).forEach(node => reformatNode(node, parentName));
+    Array.from(node.children).forEach(node => reformatNode(node, parentName, outFolder));
 };
 
-const reformat = (text, compName) => {
+const reformat = (text, compName, outFolder) => {
     const doc = parser.parseFromString(text, 'image/svg+xml');
-    reformatNode(doc.documentElement, compName);
+    reformatNode(doc.documentElement, compName, outFolder);
     return doc.documentElement.outerHTML;
 };
 
 
-const saveFile = (filename, text) => {
+const saveFile = (filename, text, outFolder) => {
+    if (!fs.existsSync(outFolder)) fs.mkdirSync(outFolder);
     fs.writeFileSync(path.join(outFolder, filename), text);
 };
 
@@ -124,17 +133,24 @@ const cleanUp = (text) => {
     ;
 };
 
-const makeComponentFile = (text, filename) => {
+const makeComponentFile = (text, file, outFolder) => {
     const className = file[0].toUpperCase() + camelCase(file.split('').slice(1).join('').replace(/\.svg$/, ''));
-
-    if (!filename) {
-        filename = 'Out.jsx';
-    }
+    const filename = `${className}.jsx`;
 
     saveFile(
         filename,
-        fileText(cleanUp(reformat(text, className)), className)
+        fileText(cleanUp(reformat(text, className, outFolder)), className),
+        outFolder
     );
 };
 
-makeComponentFile(fs.readFileSync(file).toString());
+const main = (args) => {
+  makeComponentFile(fs.readFileSync(args.file).toString(), args.file, args.outFolder);
+};
+
+try {
+  main(applyDefaultArgs(parseArgs(process.argv.slice(2))));
+} catch (err) {
+  console.log(err);
+  process.exit(1);
+}

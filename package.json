@@ -4,7 +4,8 @@
   "description": "Turn SVG files into JSX files with ease.",
   "main": "index.js",
   "dependencies": {
-    "jsdom": "^11.1.0"
+    "jsdom": "^11.1.0",
+    "minimist": "^1.2.0"
   },
   "devDependencies": {
     "jest": "^20.0.4"
