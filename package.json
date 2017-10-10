@@ -6,7 +6,9 @@
   "dependencies": {
     "jsdom": "^11.1.0",
     "lodash": "^4.17.4",
-    "minimist": "^1.2.0"
+    "minimist": "^1.2.0",
+    "pug": "^2.0.0-rc.4",
+    "shakespeare-data": "^2.5.0"
   },
   "devDependencies": {
     "jest": "^20.0.4"

@@ -160,7 +160,7 @@ const makeComponents = (text, file, outFolder, prefix) => {
 };
 
 const main = (args) => {
-  saveFiles(makeComponents(fs.readFileSync(args.file).toString(), args.file, args.outFolder, args.prefix));
+  saveFiles(makeComponents(fs.readFileSync(args.file).toString(), path.basename(args.file), args.outFolder, args.prefix));
 };
 
 if (!module.parent) {
