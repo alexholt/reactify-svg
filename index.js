@@ -42,7 +42,7 @@ const applyDefaultArgs = (args) => {
 const fileText = (renderBody, className) => {
   const deps = ["import React, {Component} from 'react';"];
   if (dependencyMap[className]) {
-    dependencyMap[className].forEach(dep => deps.push(`import ${dep} from './${dep.toLowerCase()}';`));
+    dependencyMap[className].forEach(dep => deps.push(`import ${dep} from './${dep}';`));
   }
 
   const view = new Template('tpl/ClassComponent.jsx.tpl');
@@ -55,7 +55,6 @@ const fileText = (renderBody, className) => {
 
   return view.render(model);
 };
-
 
 const reformatNode = (node, parentName, outFolder, files, prefix) => {
   const id = node.getAttribute('id');
@@ -70,6 +69,7 @@ const reformatNode = (node, parentName, outFolder, files, prefix) => {
       filename: `${moduleName}.jsx`,
       contents: fileText(cleanUp(node.outerHTML), moduleName),
       outFolder,
+      className: moduleName,
     });
     node.parentNode.replaceChild(document.createTextNode(`<${moduleName}/>`), node);
 
@@ -109,10 +109,11 @@ const reformatNode = (node, parentName, outFolder, files, prefix) => {
 
 const reformat = (text, compName, outFolder, files, prefix) => {
   const doc = parser.parseFromString(text, 'image/svg+xml');
+
+  console.log(doc.documentElement.outerHTML);
   reformatNode(doc.documentElement, compName, outFolder, files, prefix);
   return doc.documentElement.outerHTML;
 };
-
 
 const saveFile = ({filename, contents, outFolder}) => {
   if (!fs.existsSync(outFolder)) fs.mkdirSync(outFolder);
@@ -122,12 +123,19 @@ const saveFile = ({filename, contents, outFolder}) => {
 
 const saveFiles = files => {
   files.forEach(saveFile);
+  return files;
 };
 
 const cleanUp = (text) => {
   return text
-  // Quick and dirty tags to self-closing tags when the node is empty
-    .replace(/><\/[^>]+>/g, '/>')
+
+    // TODO: FIXME
+    //// Quick and dirty tags to self-closing tags when the node is empty
+    //.replace(/><\/[^>]+>/g, '/>')
+
+    // Put the contents of style tags in quotes since they include {} characters
+    .replace(/<style>/g, '<style>{`')
+    .replace(/<\/style>/g, '`}</style>')
 
     // Switch to single quotes
     .replace(/"/g, "'")
@@ -154,20 +162,52 @@ const makeComponents = (text, file, outFolder, prefix) => {
     filename,
     contents: fileText(cleanUp(reformat(text, className, outFolder, files, prefix)), className),
     outFolder,
+    className,
   });
 
   return files;
 };
 
 const main = (args) => {
-  saveFiles(makeComponents(fs.readFileSync(args.file).toString(), path.basename(args.file), args.outFolder, args.prefix));
+  const files = makeComponents(
+    fs.readFileSync(args.file).toString(),
+    path.basename(args.file),
+    args.outFolder,
+    args.prefix
+  );
+
+  const view = new Template('tpl/index.jsx.tpl');
+  view.loadFile();
+
+  const rootComp = files[files.length - 1];
+
+  const deps = [
+    "import React from 'react';",
+    "import ReactDOM from 'react-dom';",
+    '\n',
+    `import ${rootComp.className} from './${rootComp.filename}';`
+  ].join('\n');
+
+  const model = {
+    deps,
+    rootComp: rootComp.className,
+  };
+
+  files.push({
+    filename: 'index.js',
+    contents: view.render(model),
+    outFolder: args.outFolder,
+  });
+
+  saveFiles(files);
+
 };
 
 if (!module.parent) {
   try {
     main(applyDefaultArgs(parseArgs(process.argv.slice(2))));
   } catch (err) {
-    console.log(err);
+    console.error(err.message);
     process.exit(1);
   }
 } else {
