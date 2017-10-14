@@ -1,0 +1,10 @@
+exports.TAG = 'tag';
+exports.ATTR_NAME = 'attributeName';
+exports.ATTR_VALUE = 'attributeValue';
+exports.OPEN_BRACKET = 'openBracket';
+exports.END_TAG = 'endTag';
+exports.CLOSE_BRACKET = 'closeBracket';
+exports.SELF_CLOSE_BRACKET = 'selfcloseBracket';
+exports.TEXT = 'text';
+exports.ASSIGNMENT = 'assignment';
+exports.VALUE = 'value';

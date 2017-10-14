@@ -2,17 +2,15 @@
 // TODO: Remove <title> and <desc>
 
 const fs = require('fs');
-const {JSDOM} = require('jsdom');
 const path = require('path');
 const camelCase = require('lodash/camelCase');
 const parseArgs = require('minimist');
 
 const attrsMap = require('./src/svg-react-attrs');
+const Lexer = require('./src/Lexer');
 const Template = require('./src/template');
 
-const jsdom = new JSDOM();
-const parser = new jsdom.window.DOMParser;
-const document = jsdom.window.document;
+const {TAG} = require('./src/tokens');
 
 // Default Args
 const DEFAULT_PREFIX = module.exports.DEFAULT_PREFIX = 'component-';
@@ -57,21 +55,24 @@ const fileText = (renderBody, className) => {
 };
 
 const reformatNode = (node, parentName, outFolder, files, prefix) => {
-  const id = node.getAttribute('id');
+  const id = node.attributes.id;
   const prefixRegExp = new RegExp(`^${prefix}`);
 
   if (prefixRegExp.test(id)) {
     const newId = id.replace(prefixRegExp, '');
-    node.setAttribute('id', newId);
+    node.attributes.id = newId;
     const moduleName = newId[0].toUpperCase() + camelCase(newId.substr(1));
     reformatNode(node, moduleName, outFolder, files, prefix);
+
     files.push({
       filename: `${moduleName}.jsx`,
-      contents: fileText(cleanUp(node.outerHTML), moduleName),
+      contents: fileText(cleanUp(`${node}`), moduleName),
       outFolder,
       className: moduleName,
     });
-    node.parentNode.replaceChild(document.createTextNode(`<${moduleName}/>`), node);
+
+    const index = node.parent.children.indexOf(node);
+    node.parent.children[index] = {type: TAG, value: `${moduleName}`};
 
     if (!dependencyMap[parentName]) {
       dependencyMap[parentName] = [];
@@ -79,18 +80,18 @@ const reformatNode = (node, parentName, outFolder, files, prefix) => {
 
     dependencyMap[parentName].push(moduleName);
 
-    return;
+    return node;
   }
 
-  if (node.nodeName === '#comment') {
+  if (node.name === '#comment') {
+    // TODO: Reactifiy comments
     node.parentNode.removeChild(node);
-    return;
+    return node;
   }
 
-  Array.from(node.attributes).forEach(attr => {
-    const name = reactifyAttr(attr.name);
-    let value = attr.value;
-    node.attributes.removeNamedItem(attr.name);
+  Object.entries(node.attributes).forEach(([name, value]) => {
+    name = reactifyAttr(name);
+    delete node.attributes[name];
 
     if (name === 'style') {
       value = JSON.stringify(value.split(';').reduce((acc, cur) => {
@@ -101,18 +102,18 @@ const reformatNode = (node, parentName, outFolder, files, prefix) => {
         return acc;
       }, {}));
     }
-    node.setAttribute(name, value);
+
+    node.attributes[name] = value;
   });
 
-  Array.from(node.children).forEach(node => reformatNode(node, parentName, outFolder, files, prefix));
+  node.children.forEach(node => reformatNode(node, parentName, outFolder, files, prefix));
+  return node;
 };
 
 const reformat = (text, compName, outFolder, files, prefix) => {
-  const doc = parser.parseFromString(text, 'image/svg+xml');
-
-  console.log(doc.documentElement.outerHTML);
-  reformatNode(doc.documentElement, compName, outFolder, files, prefix);
-  return doc.documentElement.outerHTML;
+  const lexer = new Lexer(text);
+  const ast = lexer.buildAST();
+  return reformatNode(ast, compName, outFolder, files, prefix);
 };
 
 const saveFile = ({filename, contents, outFolder}) => {
@@ -157,10 +158,11 @@ const makeComponents = (text, file, outFolder, prefix) => {
   const className = file[0].toUpperCase() + camelCase(file.split('').slice(1).join('').replace(/\.svg$/, ''));
   const filename = `${className}.jsx`;
   const files = []; // [{ filename: string, contents: string, outFolder: string}...]
+  const revisedAST = reformat(text, className, outFolder, files, prefix);
 
   files.push({
     filename,
-    contents: fileText(cleanUp(reformat(text, className, outFolder, files, prefix)), className),
+    contents: fileText(revisedAST.toString(), className),
     outFolder,
     className,
   });
