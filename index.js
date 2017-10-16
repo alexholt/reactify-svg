@@ -72,7 +72,7 @@ const reformatNode = (node, parentName, outFolder, files, prefix) => {
     });
 
     const index = node.parent.children.indexOf(node);
-    node.parent.children[index] = {type: TAG, value: `${moduleName}`};
+    node.parent.children[index] = `<${moduleName}/>`;
 
     if (!dependencyMap[parentName]) {
       dependencyMap[parentName] = [];
@@ -129,10 +129,6 @@ const saveFiles = files => {
 
 const cleanUp = (text) => {
   return text
-
-    // TODO: FIXME
-    //// Quick and dirty tags to self-closing tags when the node is empty
-    //.replace(/><\/[^>]+>/g, '/>')
 
     // Put the contents of style tags in quotes since they include {} characters
     .replace(/<style>/g, '<style>{`')

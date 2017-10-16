@@ -97,8 +97,14 @@ module.exports = class Lexer {
               , 2);
 
             while (attrs.length > 0) {
-              const nextPair = attrs.shift()
+              const nextPair = attrs.shift();
               const [name, value] = nextPair.map(str => str.trim());
+
+              if (attrs.length === 0 && name === '/' && value === undefined) {
+                this.offset--; // The slash got included as an attribute name so back up
+                continue;
+              }
+
               this.tokens.push({type: ATTR_NAME, value: name.replace(/=$/, '')});
               this.tokens.push({type: ATTR_VALUE, value});
             }
@@ -130,7 +136,10 @@ module.exports = class Lexer {
   nodeToString() {
     let attrs = Object.entries(this.attributes).map(([name, value]) => `${name}="${value}"`).join(' ');
     if (attrs.length > 0) attrs = ` ${attrs}`;
-    return `<${this.name}${attrs}>${this.children.map(child => child.toString())}</${this.name}>`;
+    if (this.children.length > 0) {
+      return `<${this.name}${attrs}>\n${this.children.map(child => child.toString()).join('\n')}\n</${this.name}>`;
+    }
+    return `<${this.name}${attrs}/>`;
   }
 
   // <openBracket> <name> [name -> value...] <closeBracket | selfcloseBracket>
