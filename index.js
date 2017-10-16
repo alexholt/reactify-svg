@@ -90,8 +90,8 @@ const reformatNode = (node, parentName, outFolder, files, prefix) => {
   }
 
   Object.entries(node.attributes).forEach(([name, value]) => {
-    name = reactifyAttr(name);
     delete node.attributes[name];
+    name = reactifyAttr(name);
 
     if (name === 'style') {
       value = JSON.stringify(value.split(';').reduce((acc, cur) => {

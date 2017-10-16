@@ -134,6 +134,7 @@ module.exports = class Lexer {
   }
 
   nodeToString() {
+    if (this.name === '#TEXT') return `{\`${this.value}\`}`;
     let attrs = Object.entries(this.attributes).map(([name, value]) => `${name}="${value}"`).join(' ');
     if (attrs.length > 0) attrs = ` ${attrs}`;
     if (this.children.length > 0) {
@@ -192,7 +193,8 @@ module.exports = class Lexer {
 
         case TEXT:
           node = this.createEmptyNode();
-          node.name = token.value;
+          node.value = token.value;
+          node.name = '#TEXT';
           this.addChild(node, cur);
           expects = [OPEN_BRACKET, END_TAG];
           break;
