@@ -175,7 +175,6 @@ const main = (args) => {
   );
 
   const view = new Template(fs.readFileSync('tpl/index.jsx.tpl').toString());
-  view.loadFile();
 
   const rootComp = files[files.length - 1];
 
