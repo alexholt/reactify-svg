@@ -8,11 +8,13 @@
     "minimist": "^1.2.0"
   },
   "devDependencies": {
-    "jest": "^20.0.4"
+    "chai": "^4.1.2",
+    "mocha": "^4.0.1"
   },
   "scripts": {
-    "test": "jest .*test.jsx?",
-    "test-watch": "jest --watch .*test.jsx?"
+    "test": "mocha test/*.test.js",
+    "test-watch": "mocha --watch test/*.test.js",
+    "test-debug": "mocha --inspect-brk"
   },
   "repository": {
     "type": "git",

@@ -1,3 +1,4 @@
+const expect  = require('chai').expect;
 const fs = require('fs');
 
 const Lexer = require('../src/Lexer');
@@ -21,28 +22,30 @@ const sampleSVG = `
 
 let lexer;
 
-beforeEach(() => {
-  lexer = new Lexer(sampleSVG);
-});
-
-test('It can tokenize', () => {
-  const tokens = lexer.tokenize();
-  expect(tokens[0].type).toEqual(TOKENS.OPEN_BRACKET);
-  expect(tokens[1].type).toEqual(TOKENS.TAG);
-  expect(tokens[2].type).toEqual(TOKENS.ATTR_NAME);
-  expect(tokens[2].value).toEqual('xmlns');
-  expect(tokens[14].value).toEqual('defs');
-  expect(tokens[15].type).toEqual(TOKENS.CLOSE_BRACKET);
-});
-
-test('It can find tags', () => {
-  const root = lexer.buildAST();
-  expect(root.name).toEqual('svg');
-  expect(root.children[0].name).toEqual('defs');
-});
-
-test('It can find attributes', () => {
-  const ast = lexer.buildAST();
-  expect(ast.attributes.xmlns).toEqual('http://www.w3.org/2000/svg');
-  expect(ast.attributes.width).toEqual('259');
+describe('Lexer', () => {
+  beforeEach(() => {
+    lexer = new Lexer(sampleSVG);
+  });
+  
+  it('can tokenize', () => {
+    const tokens = lexer.tokenize();
+    expect(tokens[0].type).to.equal(TOKENS.OPEN_BRACKET);
+    expect(tokens[1].type).to.equal(TOKENS.TAG);
+    expect(tokens[2].type).to.equal(TOKENS.ATTR_NAME);
+    expect(tokens[2].value).to.equal('xmlns');
+    expect(tokens[14].value).to.equal('defs');
+    expect(tokens[15].type).to.equal(TOKENS.CLOSE_BRACKET);
+  });
+  
+  it('can find tags', () => {
+    const root = lexer.buildAST();
+    expect(root.name).to.equal('svg');
+    expect(root.children[0].name).to.equal('defs');
+  });
+  
+  it('can find attributes', () => {
+    const ast = lexer.buildAST();
+    expect(ast.attributes.xmlns).to.equal('http://www.w3.org/2000/svg');
+    expect(ast.attributes.width).to.equal('259');
+  });
 });

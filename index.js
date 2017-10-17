@@ -43,8 +43,8 @@ const fileText = (renderBody, className) => {
     dependencyMap[className].forEach(dep => deps.push(`import ${dep} from './${dep}';`));
   }
 
-  const view = new Template('tpl/ClassComponent.jsx.tpl');
-  view.loadFile();
+  const view = new Template(fs.readFileSync('tpl/ClassComponent.jsx.tpl').toString());
+
   const model = {
     deps: deps.join('\n'),
     name: className,
@@ -174,7 +174,7 @@ const main = (args) => {
     args.prefix
   );
 
-  const view = new Template('tpl/index.jsx.tpl');
+  const view = new Template(fs.readFileSync('tpl/index.jsx.tpl').toString());
   view.loadFile();
 
   const rootComp = files[files.length - 1];
