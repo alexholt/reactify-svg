@@ -12,6 +12,9 @@ const Template = require('./src/template');
 
 const {TAG} = require('./src/tokens');
 
+const resolvePath = path.resolve.bind(null, __dirname);
+const loadFile = file => fs.readFileSync(resolvePath(file)).toString();
+
 // Default Args
 const DEFAULT_PREFIX = module.exports.DEFAULT_PREFIX = 'component-';
 const DEFAULT_OUT_FOLDER = module.exports.DEFAULT_OUT_FOLDER = '.';
@@ -43,7 +46,7 @@ const fileText = (renderBody, className) => {
     dependencyMap[className].forEach(dep => deps.push(`import ${dep} from './${dep}';`));
   }
 
-  const view = new Template(fs.readFileSync('tpl/ClassComponent.jsx.tpl').toString());
+  const view = new Template(loadFile('./tpl/ClassComponent.jsx.tpl'));
 
   const model = {
     deps: deps.join('\n'),
@@ -174,7 +177,7 @@ const main = (args) => {
     args.prefix
   );
 
-  const view = new Template(fs.readFileSync('tpl/index.jsx.tpl').toString());
+  const view = new Template(loadFile('./tpl/index.jsx.tpl'));
 
   const rootComp = files[files.length - 1];
 
@@ -197,7 +200,6 @@ const main = (args) => {
   });
 
   saveFiles(files);
-
 };
 
 if (!module.parent) {
